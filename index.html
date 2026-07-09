@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>시공의 연대기 — Game Design Case Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0a0d14;
+    --bg-panel:#12172380;
+    --bg-panel-solid:#141a26;
+    --line:#26304a;
+    --line-soft:#1c2436;
+    --accent-cyan:#4be8d1;
+    --accent-red:#d8483f;
+    --accent-gold:#c9a24b;
+    --text-main:#ece6d8;
+    --text-dim:#8b93a6;
+    --text-faint:#4f5870;
+    --font-display:'Gowun Batang', serif;
+    --font-body:'Noto Sans KR', sans-serif;
+    --font-mono:'Space Mono', monospace;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    *{ animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; }
+  }
+
+  body{
+    background:var(--bg-void);
+    color:var(--text-main);
+    font-family:var(--font-body);
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+
+  a{ color:inherit; }
+  :focus-visible{ outline:2px solid var(--accent-cyan); outline-offset:3px; }
+
+  /* ---------- background texture ---------- */
+  .grid-veil{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size:64px 64px;
+    opacity:0.35;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 75%);
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 0%, transparent 75%);
+  }
+
+  .wrap{ position:relative; z-index:1; }
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:18px 6vw;
+    backdrop-filter:blur(10px);
+    background:linear-gradient(to bottom, rgba(10,13,20,0.85), transparent);
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.08em;
+    color:var(--text-dim);
+  }
+  .topbar .dot{ color:var(--accent-cyan); }
+
+  /* ---------- section shell ---------- */
+  section{
+    position:relative;
+    padding:120px 6vw;
+    max-width:1180px;
+    margin:0 auto;
+  }
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--accent-gold);
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:22px;
+  }
+  .eyebrow::before{
+    content:''; width:28px; height:1px; background:var(--accent-gold);
+  }
+  h2{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(28px,4vw,44px);
+    letter-spacing:-0.01em;
+    margin-bottom:16px;
+  }
+  .lede{
+    color:var(--text-dim);
+    font-size:16px;
+    max-width:620px;
+    margin-bottom:56px;
+  }
+
+  /* ---------- hero ---------- */
+  .hero{
+    min-height:100svh;
+    display:flex; flex-direction:column; justify-content:center;
+    padding-top:140px; padding-bottom:80px;
+  }
+  .hero-eyebrow{
+    font-family:var(--font-mono);
+    font-size:13px;
+    letter-spacing:0.25em;
+    color:var(--accent-cyan);
+    text-transform:uppercase;
+    margin-bottom:28px;
+    opacity:0;
+    animation:riseIn 0.8s ease-out 0.1s forwards;
+  }
+  .hero h1{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(48px, 9vw, 108px);
+    line-height:1.02;
+    letter-spacing:-0.01em;
+    background:linear-gradient(100deg, var(--accent-gold) 0%, var(--text-main) 30%, var(--text-main) 70%, var(--accent-cyan) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    opacity:0;
+    animation:riseIn 0.9s ease-out 0.25s forwards;
+  }
+  .hero-sub{
+    margin-top:26px;
+    font-size:clamp(16px,2vw,20px);
+    color:var(--text-dim);
+    max-width:560px;
+    opacity:0;
+    animation:riseIn 0.9s ease-out 0.45s forwards;
+  }
+  .hero-meta{
+    display:flex; flex-wrap:wrap; gap:14px;
+    margin-top:48px;
+    opacity:0;
+    animation:riseIn 0.9s ease-out 0.65s forwards;
+  }
+  .meta-chip{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.05em;
+    border:1px solid var(--line);
+    color:var(--text-dim);
+    padding:8px 14px;
+    border-radius:2px;
+    background:var(--bg-panel);
+  }
+  .meta-chip b{ color:var(--text-main); font-weight:700; }
+
+  @keyframes riseIn{
+    from{ opacity:0; transform:translateY(18px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .scroll-cue{
+    position:absolute; bottom:48px; left:6vw;
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.15em;
+    color:var(--text-faint);
+    display:flex; align-items:center; gap:10px;
+  }
+  .scroll-cue .bar{ width:1px; height:34px; background:linear-gradient(var(--accent-cyan), transparent); animation:pulseBar 2s ease-in-out infinite; }
+  @keyframes pulseBar{ 0%,100%{opacity:0.3;} 50%{opacity:1;} }
+
+  /* ---------- reveal ---------- */
+  .reveal{ opacity:0; transform:translateY(28px); transition:opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  /* ---------- mechanics ---------- */
+  .mech-grid{
+    display:grid; grid-template-columns:1.1fr 1fr; gap:48px;
+    align-items:center;
+  }
+  .lane-diagram{
+    border:1px solid var(--line);
+    background:var(--bg-panel-solid);
+    padding:28px;
+    border-radius:4px;
+  }
+  .lane-row{
+    display:flex; align-items:center; gap:14px;
+    padding:16px 0;
+    border-bottom:1px dashed var(--line);
+  }
+  .lane-row:last-child{ border-bottom:none; }
+  .lane-label{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+    width:34px; flex-shrink:0;
+  }
+  .lane-track{
+    flex:1; height:10px; border-radius:6px;
+    background:repeating-linear-gradient(90deg, var(--line-soft) 0 8px, transparent 8px 16px);
+    position:relative; overflow:hidden;
+  }
+  .lane-track::after{
+    content:''; position:absolute; top:0; bottom:0; width:26%;
+    background:linear-gradient(90deg, transparent, var(--lane-color, var(--accent-cyan)));
+    animation:crawl 4.5s linear infinite;
+    animation-delay:var(--lane-delay, 0s);
+  }
+  @keyframes crawl{ from{ left:-30%; } to{ left:100%; } }
+  .lane-row:nth-child(1){ --lane-color:var(--accent-cyan); }
+  .lane-row:nth-child(2){ --lane-color:var(--accent-red); --lane-delay:1.2s; }
+  .lane-row:nth-child(3){ --lane-color:var(--accent-gold); --lane-delay:2.4s; }
+
+  .mech-cards{ display:flex; flex-direction:column; gap:20px; }
+  .mech-card{
+    border:1px solid var(--line);
+    background:var(--bg-panel);
+    padding:22px 24px;
+    border-radius:4px;
+  }
+  .mech-card .tag{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.1em;
+    color:var(--accent-cyan); margin-bottom:8px; display:block;
+  }
+  .mech-card h3{ font-family:var(--font-body); font-weight:700; font-size:17px; margin-bottom:8px; }
+  .mech-card p{ color:var(--text-dim); font-size:14.5px; }
+
+  /* ---------- roster ---------- */
+  .roster-grid{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:18px;
+  }
+  .hero-card{
+    border:1px solid var(--line);
+    background:var(--bg-panel-solid);
+    padding:26px 20px;
+    border-radius:4px;
+    position:relative;
+    overflow:hidden;
+    transition:border-color 0.3s ease, transform 0.3s ease;
+  }
+  .hero-card:hover{ border-color:var(--accent-cyan); transform:translateY(-4px); }
+  .hero-card .icon{ font-size:38px; margin-bottom:18px; display:block; }
+  .hero-card .role{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.08em;
+    color:var(--accent-gold); text-transform:uppercase; margin-bottom:6px;
+  }
+  .hero-card h3{ font-family:var(--font-display); font-size:20px; margin-bottom:12px; }
+  .hero-card p{ color:var(--text-dim); font-size:13.5px; margin-bottom:14px; }
+  .hero-card .skill{
+    font-family:var(--font-mono); font-size:11.5px;
+    border-top:1px dashed var(--line); padding-top:12px;
+    color:var(--text-faint);
+  }
+  .hero-card .skill b{ color:var(--accent-red); }
+
+  /* ---------- timeline ---------- */
+  .timeline-rail{
+    position:relative;
+    padding-top:10px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:thin;
+  }
+  .timeline-track{
+    display:flex; gap:0; min-width:1040px; position:relative; padding-bottom:20px;
+  }
+  .timeline-track::before{
+    content:''; position:absolute; top:60px; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, var(--accent-gold) 0%, var(--accent-gold) 38%, var(--accent-cyan) 42%, var(--accent-cyan) 100%);
+    opacity:0.6;
+  }
+  .stage{
+    flex:1; min-width:100px; text-align:center; position:relative; padding-top:40px;
+  }
+  .stage .node{
+    width:14px; height:14px; border-radius:50%;
+    background:var(--bg-void); border:2px solid var(--accent-gold);
+    margin:0 auto 16px; position:relative; z-index:2;
+  }
+  .stage.future .node{ border-color:var(--text-faint); }
+  .stage.active .node{
+    border-color:var(--accent-cyan);
+    box-shadow:0 0 0 5px rgba(75,232,209,0.12);
+  }
+  .stage .num{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); margin-bottom:6px; }
+  .stage .icon{ font-size:22px; margin-bottom:8px; display:block; opacity:0.9; }
+  .stage.future .icon{ opacity:0.35; filter:grayscale(1); }
+  .stage .name{ font-size:12px; color:var(--text-dim); line-height:1.4; padding:0 6px; }
+  .stage.active .name{ color:var(--text-main); font-weight:500; }
+  .stage .lock{ font-family:var(--font-mono); font-size:9px; color:var(--text-faint); margin-top:4px; letter-spacing:0.06em; }
+
+  .timeline-legend{
+    display:flex; gap:26px; margin-top:36px; flex-wrap:wrap;
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-dim);
+  }
+  .timeline-legend span{ display:flex; align-items:center; gap:8px; }
+  .swatch{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+
+  /* ---------- scope ---------- */
+  .scope-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:24px;
+  }
+  .scope-panel{
+    border:1px solid var(--line); background:var(--bg-panel);
+    padding:28px; border-radius:4px;
+  }
+  .scope-panel h4{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.1em;
+    margin-bottom:18px; text-transform:uppercase;
+  }
+  .scope-panel.included h4{ color:var(--accent-cyan); }
+  .scope-panel.excluded h4{ color:var(--text-faint); }
+  .scope-panel ul{ list-style:none; }
+  .scope-panel li{
+    font-size:14px; color:var(--text-dim); padding:9px 0;
+    border-bottom:1px solid var(--line-soft);
+    display:flex; gap:10px;
+  }
+  .scope-panel li:last-child{ border-bottom:none; }
+  .scope-panel.included li::before{ content:'●'; color:var(--accent-cyan); font-size:8px; margin-top:6px; }
+  .scope-panel.excluded li::before{ content:'○'; color:var(--text-faint); font-size:8px; margin-top:6px; }
+
+  .checklist{
+    margin-top:56px;
+    border:1px solid var(--line);
+    background:var(--bg-panel-solid);
+    padding:30px 32px; border-radius:4px;
+  }
+  .checklist h4{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.1em;
+    color:var(--accent-gold); margin-bottom:20px; text-transform:uppercase;
+  }
+  .checklist ol{ list-style:none; counter-reset:chk; }
+  .checklist li{
+    counter-increment:chk;
+    font-size:14.5px; color:var(--text-dim);
+    padding:10px 0 10px 34px;
+    position:relative;
+    border-bottom:1px dashed var(--line-soft);
+  }
+  .checklist li:last-child{ border-bottom:none; }
+  .checklist li::before{
+    content:counter(chk, decimal-leading-zero);
+    position:absolute; left:0; top:10px;
+    font-family:var(--font-mono); font-size:11px; color:var(--accent-red);
+  }
+
+  /* ---------- footer ---------- */
+  footer{
+    padding:70px 6vw 60px;
+    text-align:center;
+    border-top:1px solid var(--line-soft);
+    color:var(--text-faint);
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.05em;
+  }
+  footer .brand{ color:var(--text-dim); margin-bottom:8px; font-size:13px; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width:860px){
+    section{ padding:80px 6vw; }
+    .mech-grid{ grid-template-columns:1fr; }
+    .roster-grid{ grid-template-columns:repeat(2, 1fr); }
+    .scope-grid{ grid-template-columns:1fr; }
+  }
+  @media (max-width:520px){
+    .roster-grid{ grid-template-columns:1fr; }
+    .hero h1{ font-size:15vw; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-veil"></div>
+
+<div class="topbar">
+  <span><span class="dot">●</span> SIGONG CHRONICLE</span>
+  <span>GAME DESIGN CASE STUDY</span>
+</div>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-eyebrow">Mobile Line-Defense · Design Document</div>
+    <h1>시공의 연대기</h1>
+    <p class="hero-sub">선사시대부터 메카닉 미래까지 — 전통과 하이테크가 충돌하는 시대를 방어하는<br class="brk"> 3레인 라인 디펜스 게임 기획.</p>
+    <div class="hero-meta">
+      <span class="meta-chip">플랫폼 <b>Mobile · 가로 화면</b></span>
+      <span class="meta-chip">장르 <b>Line Defense</b></span>
+      <span class="meta-chip">스테이지 <b>10단계 / 4인 로스터</b></span>
+      <span class="meta-chip">상태 <b>테스트 버전(MVP) 기획 중</b></span>
+    </div>
+    <div class="scroll-cue"><span class="bar"></span>SCROLL</div>
+  </section>
+
+  <!-- OVERVIEW -->
+  <section>
+    <div class="eyebrow reveal">Overview</div>
+    <h2 class="reveal">시대를 건너는 4명, 하나의 성벽</h2>
+    <p class="lede reveal">
+      귀여운 공룡부터 거대 총기 로봇까지, 몬스터와 영웅 모두 "전통 소재 + 사이보그화"라는 하나의 룰로 진화한다.
+      유저는 우측 성벽에 고정된 영웅들의 오토 전투를 지켜보다, 결정적 순간에 스킬을 터치해 3개 레인의 위기를 관리한다.
+      승복 입은 승병장이 레이저 캐논을 쏘고, 노비가 빙결탄을 던지는 이 부조화가 게임의 정체성이다.
+    </p>
+  </section>
+
+  <!-- MECHANICS -->
+  <section>
+    <div class="eyebrow reveal">Core Mechanics</div>
+    <h2 class="reveal">라인 디펜스, 세 갈래의 판단</h2>
+    <p class="lede reveal">한 손 엄지 조작에 최적화된 오토배틀 + 타이밍 스킬 구조.</p>
+
+    <div class="mech-grid reveal">
+      <div class="lane-diagram">
+        <div class="lane-row"><span class="lane-label">상</span><div class="lane-track"></div></div>
+        <div class="lane-row"><span class="lane-label">중</span><div class="lane-track"></div></div>
+        <div class="lane-row"><span class="lane-label">하</span><div class="lane-track"></div></div>
+      </div>
+      <div class="mech-cards">
+        <div class="mech-card">
+          <span class="tag">01 — 조작 방식</span>
+          <h3>오토 전투 + 타이밍 스킬</h3>
+          <p>영웅은 우측 성벽에 고정, 자동 공격. 유저는 타이밍에 맞춰 스킬 버튼만 터치한다.</p>
+        </div>
+        <div class="mech-card">
+          <span class="tag">02 — 레인 구조</span>
+          <h3>상 · 중 · 하, 4가지 다른 해법</h3>
+          <p>엘프는 레인 무관 점사, 수인은 맵 전체 자유 폭격, 노비는 레인 지정 CC, 스님은 레인 관통 — 같은 위협에 4개의 다른 답이 존재한다.</p>
+        </div>
+        <div class="mech-card">
+          <span class="tag">03 — 자원 시스템</span>
+          <h3>프리셋 파티 + 실시간 오버클럭</h3>
+          <p>입장 전 파티는 영구 성장, 인게임 골드는 그 판 한정 스킬 강화 — 이중 루프로 매 플레이의 선택을 다르게 만든다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROSTER -->
+  <section>
+    <div class="eyebrow reveal">Roster</div>
+    <h2 class="reveal">4인의 영웅</h2>
+    <p class="lede reveal">2단계마다 한 명씩 합류하며 레인 대응 전술이 완성된다.</p>
+
+    <div class="roster-grid reveal">
+      <div class="hero-card">
+        <span class="icon">🧝‍♀️</span>
+        <span class="role">Stage 1 Unlock</span>
+        <h3>엘프 저격수</h3>
+        <p>레인 무관 점사. 단일 강적을 정밀 저격.</p>
+        <div class="skill">RANGE · <b>ALL LANES</b></div>
+      </div>
+      <div class="hero-card">
+        <span class="icon">🐯</span>
+        <span class="role">Stage 2 Unlock</span>
+        <h3>수인 조종사</h3>
+        <p>자폭 드론으로 맵 전체를 자유 이동하며 광역 폭격.</p>
+        <div class="skill">RANGE · <b>FREE-ROAM AOE</b></div>
+      </div>
+      <div class="hero-card">
+        <span class="icon">🌾</span>
+        <span class="role">Stage 3 Unlock</span>
+        <h3>노비 폭탄 장인</h3>
+        <p>빙결·섬광·연막으로 지정 레인을 통제한다.</p>
+        <div class="skill">RANGE · <b>1 LANE CC</b></div>
+      </div>
+      <div class="hero-card">
+        <span class="icon">📿</span>
+        <span class="role">Stage 4 Unlock</span>
+        <h3>스님 장군</h3>
+        <p>"파하(破夏)!" — 레인 하나를 통째로 관통하는 레이저.</p>
+        <div class="skill">RANGE · <b>1 LANE PIERCE</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section>
+    <div class="eyebrow reveal">Level Design</div>
+    <h2 class="reveal">시간의 축, 10단계</h2>
+    <p class="lede reveal">선사시대의 골드빛에서 시작해 메카닉 미래의 시안빛으로 끝난다. 1~4단계가 이번 테스트 버전의 범위다.</p>
+
+    <div class="timeline-rail reveal">
+      <div class="timeline-track">
+        <div class="stage active"><span class="num">01</span><span class="icon">🦖</span><span class="name">태초의 지구</span></div>
+        <div class="stage active"><span class="num">02</span><span class="icon">🐯</span><span class="name">신화의 서막</span></div>
+        <div class="stage active"><span class="num">03</span><span class="icon">⚔️</span><span class="name">철갑의 전장</span></div>
+        <div class="stage active"><span class="num">04</span><span class="icon">📿</span><span class="name">호국의 불꽃</span></div>
+        <div class="stage future"><span class="num">05</span><span class="icon">🌾</span><span class="name">시공의 정체</span><span class="lock">LOCKED</span></div>
+        <div class="stage future"><span class="num">06</span><span class="icon">🛰️</span><span class="name">근현대</span><span class="lock">LOCKED</span></div>
+        <div class="stage future"><span class="num">07</span><span class="icon">🤖</span><span class="name">과도기</span><span class="lock">LOCKED</span></div>
+        <div class="stage future"><span class="num">08</span><span class="icon">🛸</span><span class="name">기계화 전선</span><span class="lock">LOCKED</span></div>
+        <div class="stage future"><span class="num">09</span><span class="icon">⚡</span><span class="name">메카닉 미래</span><span class="lock">LOCKED</span></div>
+        <div class="stage future"><span class="num">10</span><span class="icon">👾</span><span class="name">기가-아스널</span><span class="lock">LOCKED</span></div>
+      </div>
+    </div>
+    <div class="timeline-legend reveal">
+      <span><i class="swatch" style="background:var(--accent-cyan)"></i>1~4단계 · 테스트 버전 범위</span>
+      <span><i class="swatch" style="background:var(--text-faint)"></i>5~10단계 · 추후 기획</span>
+    </div>
+  </section>
+
+  <!-- SCOPE -->
+  <section>
+    <div class="eyebrow reveal">Test Version Scope</div>
+    <h2 class="reveal">이번 빌드가 증명해야 할 것</h2>
+    <p class="lede reveal">"4명이 모였을 때, 레인 판단 + 스킬 타이밍 + 골드 배분이 유의미한 선택으로 느껴지는가."</p>
+
+    <div class="scope-grid reveal">
+      <div class="scope-panel included">
+        <h4>Included — MVP</h4>
+        <ul>
+          <li>1~4단계 풀 플레이 (4캐릭터 로스터 완성)</li>
+          <li>3레인 조작 + 오토배틀 코어 루프</li>
+          <li>실시간 오버클럭 성장 시스템</li>
+          <li>스테이지별 웨이브 밸런스 초안</li>
+        </ul>
+      </div>
+      <div class="scope-panel excluded">
+        <h4>Deferred — Post-Test</h4>
+        <ul>
+          <li>5단계 이후 (전 캐릭터 합류~최종보스)</li>
+          <li>BM 구조 (가챠 · 스킨 판매)</li>
+          <li>로비 소셜 펀 콘텐츠</li>
+          <li>기가-아스널 보스 페이즈 기믹</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="checklist reveal">
+      <h4>Playtest Checklist</h4>
+      <ol>
+        <li>레인 판단이 직관적으로 읽히는가 (위험 레인이 즉시 파악되는가)</li>
+        <li>4개 스킬의 쿨타임·사거리가 겹치지 않고 각자 존재 이유가 있는가</li>
+        <li>오버클럭 골드 분배가 고민되는 선택인가, 항상 정답이 정해져 있는가</li>
+        <li>캐릭터가 늘어날 때(2→3→4단계) 난이도 체감이 자연스럽게 상승하는가</li>
+        <li>4단계 클리어까지의 총 플레이타임이 모바일 세션에 적합한가</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <div class="brand">시공의 연대기 — SIGONG CHRONICLE</div>
+    Mobile Line-Defense Game Design Document · Test Version Scope v1
+    <div style="margin-top:14px; color:var(--text-faint);">© 2026 조진훈. All rights reserved.</div>
+  </footer>
+
+</div>
+
+<script>
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { threshold:0.12 });
+  revealEls.forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>
